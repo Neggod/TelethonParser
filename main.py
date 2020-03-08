@@ -18,12 +18,8 @@ except (ImportError, ModuleNotFoundError):
     p = subprocess.Popen(sys.executable + f' -m pip3 install -r {input_file}', shell=True)
     p.wait()
     import socks
-import telethon
 from telethon import TelegramClient, events
-from telethon.tl.functions.channels import JoinChannelRequest
-from telethon.tl.types import DocumentAttributeVideo, MessageMediaDocument, InputMessagesFilterUrl, Message, \
-    MessageMediaWebPage, MessageMediaPhoto, PeerChannel
-from telethon.tl.functions.messages import ImportChatInviteRequest, GetHistoryRequest
+from telethon.tl.types import PeerChannel
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     filename='start_log.txt', level=logging.ERROR)
@@ -75,7 +71,7 @@ async def prepare_donors():
     """
     for number, query in parser['Donor_Channels'].items():
         if query.isdigit():
-            donor: PeerChannel = await client.get_entity(PeerChannel(int(query)))
+            donor: PeerChannel = await client.get_entity(int(query))
         else:
             try:
                 donor: PeerChannel = await client.get_entity(query)
@@ -87,10 +83,10 @@ async def prepare_donors():
         donors.append(donor)
     with open(cfg, 'w', encoding='UTF-8') as conf:
         parser.write(conf)
-    print('Все ссылки успешно преобразоваты.')
+    print('Все ссылки успешно преобразованы.')
 
 
-@client.on(events.NewMessage(chats=(*donors,)))
+@client.on(events.NewMessage(chats=donors))  # chats=(*donors,))
 async def listen_channels(event: events.NewMessage):
     """
     Если какие-то из целевых слов есть в тексте и какое-то из 3х слов еще есть в сообщении - пересылаем в основной канал
@@ -99,6 +95,7 @@ async def listen_channels(event: events.NewMessage):
     :param event:
     :return:
     """
+    print(event)
     if any(word in event.message.message.lower() for word in target_words):
         if any(trigger in event.message.message.lower() for trigger in ['ищу', 'вакансия', 'требуется']):
             await client.forward_messages(main_channel, event.message.id, event.message.to_id)
@@ -109,5 +106,4 @@ async def listen_channels(event: events.NewMessage):
 
 if __name__ == '__main__':
     client.loop.create_task(prepare_donors())
-    print('all ok server start')
     client.run_until_disconnected()
