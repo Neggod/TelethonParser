@@ -70,7 +70,7 @@ async def listen_channels(event: events.NewMessage):
     """
     if any(word in event.message.message.lower() for word in target_words):
         if any(trigger in event.message.message.lower() for trigger in ['ищу', 'вакансия', 'требуется']):
-            await client.forward_messages(main_channel, event.message.id, event.message.to_id, silent=False)
+            await client.forward_messages(main_channel, event.message.id, event.message.to_id)
         else:
             await client.forward_messages(reserved_channel, event.message.id, event.message.to_id)
     await event.message.mark_read()
