@@ -59,22 +59,35 @@ client = TelegramClient('work_session', api_id, api_hash, device_model='Tesla Mo
                         # proxy=('host', 443, 'secret'))
                         proxy=(socks.SOCKS5, '127.0.0.1', 1088))
 
-client.start()
 
-donors = []
+async def listen_channels(event: events.NewMessage):
+    """
+    Если какие-то из целевых слов есть в тексте и какое-то из 3х слов еще есть в сообщении - пересылаем в основной канал
+    если из 3х слов нет ни одного - отправляем в резервный канал.
+    помечаем сообщение, как прочитанное.
+    :param event:
+    :return:
+    """
+    if any(word in event.message.message.lower() for word in target_words):
+        if any(trigger in event.message.message.lower() for trigger in ['ищу', 'вакансия', 'требуется']):
+            await client.forward_messages(main_channel, event.message.id, event.message.to_id, silent=False)
+        else:
+            await client.forward_messages(reserved_channel, event.message.id, event.message.to_id)
+    await event.message.mark_read()
 
 
-async def prepare_donors():
+async def prepare_donors(client_: TelegramClient):
     """
     Все группы доноры преобразуем в ID-ы, чтобы, если поменялась ссылка, не перестало работать.
     :return:
     """
+    donors = []
     for number, query in parser['Donor_Channels'].items():
         if query.isdigit():
-            donor: PeerChannel = await client.get_entity(int(query))
+            donor: PeerChannel = PeerChannel(int(query))
         else:
             try:
-                donor: PeerChannel = await client.get_entity(query)
+                donor: PeerChannel = await client_.get_entity(query)
             except Exception as err:
                 print(err)
                 continue
@@ -84,26 +97,10 @@ async def prepare_donors():
     with open(cfg, 'w', encoding='UTF-8') as conf:
         parser.write(conf)
     print('Все ссылки успешно преобразованы.')
-
-
-@client.on(events.NewMessage(chats=donors))  # chats=(*donors,))
-async def listen_channels(event: events.NewMessage):
-    """
-    Если какие-то из целевых слов есть в тексте и какое-то из 3х слов еще есть в сообщении - пересылаем в основной канал
-    если из 3х слов нет ни одного - отправляем в резервный канал.
-    помечаем сообщение, как прочитанное.
-    :param event:
-    :return:
-    """
-    print(event)
-    if any(word in event.message.message.lower() for word in target_words):
-        if any(trigger in event.message.message.lower() for trigger in ['ищу', 'вакансия', 'требуется']):
-            await client.forward_messages(main_channel, event.message.id, event.message.to_id)
-        else:
-            await client.forward_messages(reserved_channel, event.message.id, event.message.to_id)
-    await event.message.mark_read()
+    client_.add_event_handler(listen_channels, events.NewMessage(chats=(*donors,)))
 
 
 if __name__ == '__main__':
-    client.loop.create_task(prepare_donors())
+    client.start()
+    client.loop.create_task(prepare_donors(client))
     client.run_until_disconnected()
