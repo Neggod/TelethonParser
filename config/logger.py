@@ -1,6 +1,6 @@
 import datetime
 import logging
-from config.settings import LOG_DIR
+from config.settings import LOG_DIR, DEBUG
 
 _log_format = '%(asctime)s [LINE:%(lineno)d] %(levelname)s %(funcName)s %(module)s %(message)s'
 
@@ -14,7 +14,10 @@ def get_file_handler():
 
 def get_stream_handler():
     stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.INFO)
+    if DEBUG:
+        stream_handler.setLevel(logging.DEBUG)
+    else:
+        stream_handler.setLevel(logging.INFO)
     stream_handler.setFormatter(logging.Formatter(_log_format))
     return stream_handler
 
